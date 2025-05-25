@@ -13,28 +13,42 @@ import sys
 import base64
 
 class DinoPlayer:
-    def __init__(self):
+    def __init__(self, ui_callback=None):
         try:
+            self.ui_callback = ui_callback if ui_callback else print
             # Initialize Chrome driver
             self.driver = webdriver.Chrome()
             self.driver.get("https://chromedino.com/")
             # Set window size for consistent gameplay
             self.driver.set_window_size(800, 400)
+            self.running = False
         except Exception as e:
-            print("\nError during initialization:")
+            self.ui_callback("\nError during initialization:")
             traceback.print_exc()
             sys.exit(1)
         
+    def log(self, message):
+        self.ui_callback(message)
+        
+    def stop_game(self):
+        self.running = False
+        try:
+            self.driver.quit()
+        except Exception as e:
+            self.log("\nError while closing browser:")
+            traceback.print_exc()
+    
     def start_game(self):
         try:
+            self.running = True
             # Wait for the game to load
             time.sleep(2)
             # Press space to start
             actions = ActionChains(self.driver)
             actions.send_keys(Keys.SPACE).perform()
-            print("Game started!")
+            self.log("Game started!")
             
-            while True:
+            while self.running:
                 try:
                     # Get the game canvas
                     canvas = self.driver.find_element(By.TAG_NAME, "canvas")
@@ -62,28 +76,24 @@ class DinoPlayer:
                     
                     # If we detect dark pixels (obstacles) in our region of interest
                     if np.any(obstacle_region < 100):  # Threshold for dark pixels
-                        print("Obstacle detected")
+                        self.log("Obstacle detected")
                         # Jump!
                         actions.send_keys(Keys.SPACE).perform()
-                        print("Jumped")
+                        self.log("Jumped")
                         time.sleep(0.1)  # Small delay to prevent multiple jumps
                     
                     time.sleep(0.01)  # Small delay to prevent excessive CPU usage
                     
                 except Exception as e:
-                    print("\nError during gameplay loop:")
+                    self.log("\nError during gameplay loop:")
                     traceback.print_exc()
                     break
                 
         except Exception as e:
-            print("\nError during game startup:")
+            self.log("\nError during game startup:")
             traceback.print_exc()
         finally:
-            try:
-                self.driver.quit()
-            except Exception as e:
-                print("\nError while closing browser:")
-                traceback.print_exc()
+            self.stop_game()
 
 if __name__ == "__main__":
     try:
